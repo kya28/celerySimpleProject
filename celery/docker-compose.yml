@@ -1,0 +1,47 @@
+version: '3.7'
+services:
+  web:
+    restart: always
+    build: ./
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./:/PycharmProjects/celeryProject/celery
+    ports:
+      - 8000:8000
+    env_file:
+      - ./.env.dev
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+  redis:
+    image: redis
+    command: [ "redis-server", "--appendonly", "yes" ]
+    restart: always
+    ports:
+      - 6379:6379
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: "celery -A celery_main worker -l info"
+    depends_on:
+      - web
+      - redis
+    restart: on-failure
+  flower:
+    image: mher/flower:0.9.7
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_PORT=5555
+#    command: 'celery -A celery_main flower --adress=127.0.0.1 --port=5555'
+#      - "celery"
+#      - "--broker=amqp://guest@redis:6379//"
+#      - "flower"
+#      - "--broker_api=http://guest:guest@redis:6379/api//"
+    ports:
+      - 5555:5555
+    depends_on:
+      - celery
+      - web
+      - redis
